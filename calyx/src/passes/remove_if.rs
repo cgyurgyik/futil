@@ -38,20 +38,78 @@ impl Visitor for RemoveIf {
         ctx: &Context,
     ) -> VisResult {
         // get node and port for the comparison component
-        let (cmp_idx, cmp_port) = match &con.port {
-            Port::Comp { component, port } => {
-                (this_comp.structure.get_inst_index(&component)?, port)
-            }
-            Port::This { port } => {
-                (this_comp.structure.get_io_index(&port)?, port)
-            }
+        let (cmp_name, cmp_idx, cmp_port) = match &con.port {
+            Port::Comp { component, port } => (
+                component.to_string(),
+                this_comp.structure.get_inst_index(&component)?,
+                port,
+            ),
+            Port::This { port } => (
+                "this".into(),
+                this_comp.structure.get_io_index(&port)?,
+                port,
+            ),
+        };
+
+        let (creg_name, creg_idx, creg_port) = {
+            let name = format!("{}_{}_reg", cmp_name, cmp_port.to_string());
+            let reg_comp =
+                ctx.instantiate_primitive(&name, &"std_reg".into(), &[1, 1])?;
+            let reg_idx = this_comp.structure.add_primitive(
+                &name.clone().into(),
+                "std_reg",
+                &reg_comp,
+                &[1, 1],
+            );
+
+            this_comp
+                .structure
+                .insert_edge(cmp_idx, &cmp_port, reg_idx, "in")?;
+
+            let reg_first_port =
+                &this_comp.structure.graph[reg_idx].out_ports().next();
+            let reg_port = match reg_first_port {
+                Some(p) => p.clone(),
+                None => {
+                    return Err(errors::Error::UndefinedPort("out".to_string()))
+                }
+            };
+
+            (name, reg_idx, reg_port)
+        };
+
+        let (cneg_name, cneg_idx, cneg_port) = {
+            let name = format!("{}_not", creg_name);
+            let neg_comp =
+                ctx.instantiate_primitive(&name, &"std_not".into(), &[1])?;
+            let neg_idx = this_comp.structure.add_primitive(
+                &name.clone().into(),
+                "std_not",
+                &neg_comp,
+                &[1],
+            );
+
+            this_comp
+                .structure
+                .insert_edge(creg_idx, &creg_port, neg_idx, "in")?;
+
+            let neg_first_port =
+                &this_comp.structure.graph[neg_idx].out_ports().next();
+            let neg_port = match neg_first_port {
+                Some(p) => p.clone(),
+                None => {
+                    return Err(errors::Error::UndefinedPort("out".to_string()))
+                }
+            };
+
+            (name, neg_idx, neg_port)
         };
 
         let add_structure_tbranch =
             |this_comp: &mut Component, en_comp: &ast::Id| {
                 this_comp.structure.insert_edge(
-                    cmp_idx,
-                    &cmp_port,
+                    creg_idx,
+                    &creg_port,
                     this_comp.structure.get_inst_index(en_comp)?,
                     "valid",
                 )
@@ -59,22 +117,9 @@ impl Visitor for RemoveIf {
 
         let add_structure_fbranch =
             |this_comp: &mut Component, en_comp: &ast::Id| {
-                // XXX(sam) randomly generate this name
-                let name = format!("{}_not", en_comp.as_ref());
-                let neg_comp =
-                    ctx.instantiate_primitive(&name, &"std_not".into(), &[1])?;
-                let neg = this_comp.structure.add_primitive(
-                    &name.into(),
-                    "std_not",
-                    &neg_comp,
-                    &[1],
-                );
-                this_comp
-                    .structure
-                    .insert_edge(cmp_idx, &cmp_port, neg, "in")?;
                 this_comp.structure.insert_edge(
-                    neg,
-                    "out",
+                    cneg_idx,
+                    &cneg_port,
                     this_comp.structure.get_inst_index(en_comp)?,
                     "valid",
                 )
@@ -102,31 +147,16 @@ impl Visitor for RemoveIf {
 
                 let tbranch_control = tbranch.comps.clone().into_iter();
                 let fbranch_control = fbranch.comps.clone().into_iter();
-                let fbranch_not_control = fbranch
-                    .comps
-                    .clone()
-                    .into_iter()
-                    .filter_map(|comp| {
-                        resolve_signature(this_comp, &comp).map_or(
-                            None,
-                            |sig| {
-                                if sig.has_input("valid") {
-                                    Some(format!("{}_not", comp.as_ref()))
-                                } else {
-                                    None
-                                }
-                            },
-                        )
-                    })
-                    .map(|s| s.into());
 
-                let branch_control: Vec<ast::Id> = tbranch_control
-                    .chain(fbranch_control)
-                    .chain(fbranch_not_control)
-                    .collect();
+                let mut branch_control: Vec<ast::Id> =
+                    tbranch_control.chain(fbranch_control).collect();
+                branch_control.push(ast::Id::from(cneg_name));
+                branch_control.push(ast::Id::from(creg_name.clone()));
 
+                let mut cond_control = con.cond.clone();
+                cond_control.push(ast::Id::from(creg_name));
                 let comps_seq = vec![
-                    Control::enable(con.cond.clone()),
+                    Control::enable(cond_control),
                     Control::enable(branch_control),
                 ];
 
