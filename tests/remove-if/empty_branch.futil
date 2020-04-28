@@ -1,0 +1,18 @@
+; not useful program before we have library
+(define/namespace prog
+  (import primitives/std.lib)
+  (define/component main () ()
+    ([new-std a0 (std_reg 32)]
+     [-> (@ const0 out) (@ a0 in)]
+     [new-std const0 (std_const 32 10)]
+     [new-std b0 (std_reg 32)]
+     [-> (@ const1 out) (@ b0 in)]
+     [new-std const1 (std_const 32 1)]
+     [new-std gt0 (std_gt 32)]
+     [-> (@ a0 out) (@ gt0 left)]
+     [new-std const2 (std_const 32 5)])
+    (seq
+     (enable a0 const0)
+     (if (@ gt0 out) (gt0 a0 const1)
+         (enable const2)
+         (enable)))))

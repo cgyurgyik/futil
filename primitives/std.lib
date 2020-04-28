@@ -124,8 +124,11 @@ endmodule")))
 endmodule")))
 
   (define/prim std_or (p_width)
-   ((port left p_width) (port right p_width))
-   ((port out p_width))
+   ((port valid 1) 
+    (port left p_width) 
+    (port right p_width))
+   ((port out p_width)
+    (port ready 1))
    ((verilog
 "module std_or
   #(parameter width = 32)
@@ -133,6 +136,7 @@ endmodule")))
     input logic  [width-1:0] right,
     output logic [width-1:0] out);
    assign out = left | right;
+   assign ready = valid;
 endmodule")))
 
   (define/prim std_gt (p_width)

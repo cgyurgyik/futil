@@ -1,0 +1,27 @@
+(define/component main
+  ()
+  ()
+  ([new-std a0 (std_reg 32)]
+   [new-std b0 (std_reg 32)]
+   [new-std const0 (std_const 32 10)]
+   [new-std const1 (std_const 32 1)]
+   [new-std const2 (std_const 32 5)]
+   [new-std gt0 (std_gt 32)]
+   [new-std gt0_out_reg (std_reg 1 1)]
+   [new-std gt0_out_reg_const (std_const 1 1)]
+   [new-std gt0_out_reg_not (std_not 1)]
+   [new-std gt0_out_reg_or (std_or 1)]
+   [-> (@ a0 out) (@ gt0 left)]
+   [-> (@ const0 out) (@ a0 in)]
+   [-> (@ const1 out) (@ b0 in)]
+   [-> (@ const2 ready) (@ gt0_out_reg_or left)]
+   [-> (@ gt0 out) (@ gt0_out_reg in)]
+   [-> (@ gt0_out_reg out) (@ const2 valid)]
+   [-> (@ gt0_out_reg out) (@ gt0_out_reg_not in)]
+   [-> (@ gt0_out_reg_const ready) (@ gt0_out_reg_or right)]
+   [-> (@ gt0_out_reg_not out) (@ gt0_out_reg_const valid)])
+  (seq
+   (enable a0 const0)
+   (seq
+    (enable gt0 a0 const1 gt0_out_reg)
+    (enable const2 gt0_out_reg_const gt0_out_reg_not gt0_out_reg))))

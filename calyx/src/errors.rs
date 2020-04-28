@@ -11,6 +11,7 @@ pub enum Error {
     InvalidFile,
     ParseError(String),
     WriteError,
+    NotFoundPort(String, ast::Id),
     MismatchedPortWidths(ast::Port, u64, ast::Port, u64),
     UndefinedPort(String),
     UndefinedEdge(String, String),
@@ -41,6 +42,7 @@ impl std::fmt::Debug for Error {
             InvalidFile => write!(f, "InvalidFile"),
             ParseError(msg) => write!(f, "{}", msg),
             WriteError => write!(f, "WriteError"),
+            NotFoundPort(port, id) => write!(f, "Port {} of component {} is not found", port, id.to_string()),
             MismatchedPortWidths(port1, w1, port2, w2) => write!(
                 f,
                 "Mismatched Port Widths: {:?} ({}) != {:?} ({})",

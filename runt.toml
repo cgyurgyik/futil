@@ -25,6 +25,13 @@ cmd = """
 """
 
 [[tests]]
+name = "Remove If"
+paths = [ "tests/remove-if/*.futil" ]
+cmd = """
+  ./target/debug/futil {} -b futil -p remove-if
+"""
+
+[[tests]]
 name = "Automatic Par"
 paths = [ "tests/automatic-par/*.futil" ]
 cmd = "./target/debug/futil {} -b futil -p automatic-par"

@@ -74,11 +74,11 @@ fn pass_map() -> HashMap<String, PassClosure> {
         "all".to_string(),
         Box::new(|ctx, mut name_gen| {
             RedundantPar::do_pass_default(ctx)?;
-            RemoveIf::do_pass_default(ctx)?;
             CollapseSeq::do_pass_default(ctx)?;
             AutomaticPar::do_pass_default(ctx)?;
             // // fsm generation
             LatencyInsensitive::do_pass_default(&ctx)?;
+            RemoveIf::do_pass_default(ctx)?;
             FsmSeq::new(&mut name_gen).do_pass(&ctx)?;
 
             // interfacing generation
